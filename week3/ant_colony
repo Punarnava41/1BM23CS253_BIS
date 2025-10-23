@@ -1,0 +1,160 @@
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+stops = np.array([
+    [0, 0],
+    [2, 3],
+    [5, 1],
+    [7, 5],
+    [3, 7],
+    [6, 0],
+    [9, 3]
+])
+num_stops = len(stops)
+
+
+def calculate_travel_time(stop1, stop2):
+    return np.linalg.norm(stop1 - stop2)
+
+travel_time_matrix = np.zeros((num_stops, num_stops))
+for i in range(num_stops):
+    for j in range(num_stops):
+        if i != j:
+            travel_time_matrix[i, j] = calculate_travel_time(stops[i], stops[j])
+        else:
+            travel_time_matrix[i, j] = np.inf
+
+
+num_ants = 30
+num_iterations = 150
+pheromone_evaporation_rate = 0.6
+pheromone_deposit_amount = 1.0
+alpha = 1.0
+beta = 3.0
+
+pheromone_matrix = np.ones((num_stops, num_stops)) * 0.1
+
+
+def select_next_stop(current_stop, visited_stops, pheromone_matrix, travel_time_matrix, alpha, beta):
+    """Selects the next stop for an ant based on pheromone levels and heuristic information."""
+    possible_next_stops = [i for i in range(num_stops) if i not in visited_stops]
+    if not possible_next_stops:
+        return None
+
+    probabilities = []
+    total_probability = 0
+
+    for next_stop in possible_next_stops:
+        travel_time = travel_time_matrix[current_stop, next_stop]
+        heuristic = 1.0 / travel_time if travel_time > 0 else 0.0
+
+        probability = (pheromone_matrix[current_stop, next_stop]**alpha) * (heuristic**beta)
+        probabilities.append(probability)
+        total_probability += probability
+
+    if total_probability > 0:
+        probabilities = [p / total_probability for p in probabilities]
+    else:
+
+        probabilities = [1.0 / len(possible_next_stops)] * len(possible_next_stops)
+
+
+    selected_stop = random.choices(possible_next_stops, weights=probabilities, k=1)[0]
+    return selected_stop
+
+def calculate_route_travel_time(route, travel_time_matrix):
+    """Calculates the total travel time for a given route."""
+    total_time = 0
+    for i in range(len(route) - 1):
+        total_time += travel_time_matrix[route[i], route[i+1]]
+    return total_time
+
+
+best_route = None
+best_route_travel_time = np.inf
+route_time_history = []
+print("Starting ACO for Bus Route Management...")
+
+for iteration in range(num_iterations):
+    all_ant_routes = []
+    all_route_times = []
+
+    for ant_id in range(num_ants):
+        start_stop = random.randint(0, num_stops - 1)
+        route = [start_stop]
+        visited_stops = {start_stop}
+        current_stop = start_stop
+
+        while len(visited_stops) < num_stops:
+             next_stop = select_next_stop(current_stop, visited_stops, pheromone_matrix, travel_time_matrix, alpha, beta)
+             if next_stop is None:
+                 break
+             route.append(next_stop)
+             visited_stops.add(next_stop)
+             current_stop = next_stop
+
+
+        all_ant_routes.append(route)
+        if len(route) > 1:
+            route_time = calculate_route_travel_time(route, travel_time_matrix)
+            all_route_times.append(route_time)
+
+            if route_time < best_route_travel_time:
+                best_route_travel_time = route_time
+                best_route = route
+        else:
+             all_route_times.append(np.inf)
+
+
+    delta_pheromone_matrix = np.zeros((num_stops, num_stops))
+
+    for ant_index, route in enumerate(all_ant_routes):
+        route_time = all_route_times[ant_index]
+        if route_time < np.inf and route_time > 0:
+            pheromone_deposit = pheromone_deposit_amount / route_time
+            for i in range(len(route) - 1):
+                stop_i = route[i]
+                stop_j = route[i+1]
+                delta_pheromone_matrix[stop_i, stop_j] += pheromone_deposit
+                delta_pheromone_matrix[stop_j, stop_i] += pheromone_deposit
+
+
+    pheromone_matrix = (1 - pheromone_evaporation_rate) * pheromone_matrix
+    pheromone_matrix = pheromone_matrix + delta_pheromone_matrix
+
+    route_time_history.append(best_route_travel_time)
+
+    if (iteration + 1) % 10 == 0 or iteration == 0:
+        print(f"Iteration {iteration+1}/{num_iterations}, Best Route Travel Time: {best_route_travel_time:.2f}")
+
+print("\nACO simulation for Bus Route Management finished.")
+
+print(f"Best route found (sequence of stops): {best_route}")
+print(f"Best route travel time: {best_route_travel_time:.2f}")
+
+plt.figure(figsize=(10, 8))
+plt.scatter(stops[:, 0], stops[:, 1], c='red', marker='o', s=150, label='Bus Stops')
+
+if best_route and len(best_route) > 1:
+    route_coords = [stops[best_route[i]] for i in range(len(best_route))]
+    route_coords = np.array(route_coords)
+    plt.plot(route_coords[:, 0], route_coords[:, 1], linestyle='-', marker='o', color='blue', label='Best Route')
+
+for i, stop in enumerate(stops):
+    plt.text(stop[0], stop[1], f'Stop {i}', fontsize=12, ha='right')
+
+plt.title("Best Bus Route found by ACO (Simplified Example)")
+plt.xlabel("X Coordinate")
+plt.ylabel("Y Coordinate")
+plt.grid(True)
+plt.legend()
+plt.show()
+
+plt.figure(figsize=(8, 6))
+plt.plot(range(1, num_iterations + 1), route_time_history)
+plt.title("Convergence of Best Route Travel Time")
+plt.xlabel("Iteration")
+plt.ylabel("Best Route Travel Time")
+plt.grid(True)
+plt.show()
