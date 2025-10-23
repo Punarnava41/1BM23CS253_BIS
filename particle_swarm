@@ -1,0 +1,126 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import random
+
+# 1. Define the Problem: Optimize image contrast using PSO
+# We'll use the same fitness function that aims to maximize the standard deviation
+# of pixel values in an image after adjusting its contrast.
+def fitness_function(image, contrast_factor):
+    """Evaluates the fitness of an image based on the standard deviation of pixel values after contrast adjustment."""
+    # Apply contrast adjustment: pixel = (pixel - 128) * factor + 128
+    adjusted_image = image.point(lambda p: (p - 128) * contrast_factor + 128)
+    return np.std(np.array(adjusted_image))
+
+# Load a sample image (replace with your image path or use the upload functionality)
+try:
+    # Using the image uploaded in the previous step if it exists and is named 'bird.jpg'
+    img = Image.open('/content/bird.jpg').convert('L') # Convert to grayscale
+except FileNotFoundError:
+    print("Sample image not found at /content/bird.jpg. Please upload an image or update the path.")
+    # Create a dummy image if the file is not found
+    img = Image.new('L', (100, 100), color='gray')
+
+
+# 2. Initialize Parameters for PSO
+num_particles = 30
+inertia_weight = 0.7
+cognitive_coefficient = 1.5
+social_coefficient = 1.5
+num_iterations = 100
+min_contrast_factor = 0.5  # Lower bound for contrast factor
+max_contrast_factor = 2.0  # Upper bound for contrast factor
+
+# 3. Initialize Particles
+particles = []
+for _ in range(num_particles):
+  # Each particle's position will represent a single contrast factor
+  position = random.uniform(min_contrast_factor, max_contrast_factor)
+  velocity = random.uniform(-0.1, 0.1) # Initial velocities for the contrast factor
+  personal_best_position = position
+  personal_best_fitness = fitness_function(img, position) # Evaluate initial fitness
+  particles.append({
+      'position': position,
+      'velocity': velocity,
+      'personal_best_position': personal_best_position,
+      'personal_best_fitness': personal_best_fitness
+  })
+
+# Initialize Global Best
+global_best_position = particles[0]['personal_best_position']
+global_best_fitness = particles[0]['personal_best_fitness']
+
+# Update global best based on initial particles
+for particle in particles:
+    if particle['personal_best_fitness'] > global_best_fitness: # Maximize fitness (standard deviation)
+        global_best_fitness = particle['personal_best_fitness']
+        global_best_position = particle['personal_best_position']
+
+
+# 4. Evaluate Fitness and 5. Update Personal and Global Best (within the loop)
+# 6. Iterate
+fitness_history = []
+for iteration in range(num_iterations):
+  for particle in particles:
+    current_fitness = fitness_function(img, particle['position'])
+
+    # Update personal best
+    if current_fitness > particle['personal_best_fitness']: # Maximize fitness
+      particle['personal_best_fitness'] = current_fitness
+      particle['personal_best_position'] = particle['position']
+
+    # Update global best
+    if current_fitness > global_best_fitness: # Maximize fitness
+      global_best_fitness = current_fitness
+      global_best_position = particle['position']
+
+  # 7. Update Velocities and Positions
+  for particle in particles:
+      r1 = random.random()
+      r2 = random.random()
+
+      cognitive_velocity = cognitive_coefficient * r1 * (particle['personal_best_position'] - particle['position'])
+      social_velocity = social_coefficient * r2 * (global_best_position - particle['position'])
+      particle['velocity'] = inertia_weight * particle['velocity'] + cognitive_velocity + social_velocity
+      particle['position'] += particle['velocity']
+
+      # Apply boundaries to position (contrast factor)
+      if particle['position'] < min_contrast_factor:
+          particle['position'] = min_contrast_factor
+      elif particle['position'] > max_contrast_factor:
+          particle['position'] = max_contrast_factor
+
+  fitness_history.append(global_best_fitness)
+
+  # Optional: Print progress
+  if (iteration + 1) % 10 == 0:
+    print(f"Iteration {iteration + 1}/{num_iterations}, Best Fitness: {global_best_fitness:.6f}")
+
+# 8. Output the Best Solution
+print("\nOptimization finished.")
+print("Best contrast factor found:", global_best_position)
+print("Best fitness found:", global_best_fitness)
+
+# Apply the best contrast to the image and display
+best_image = img.point(lambda p: (p - 128) * global_best_position + 128)
+
+plt.figure(figsize=(10, 5))
+plt.subplot(1, 2, 1)
+plt.imshow(img, cmap='gray')
+plt.title('Original Image')
+plt.axis('off')
+
+plt.subplot(1, 2, 2)
+plt.imshow(best_image, cmap='gray')
+plt.title(f'Optimized Contrast Image (Factor: {global_best_position:.2f})')
+plt.axis('off')
+plt.show()
+
+# Plot fitness history
+plt.figure(figsize=(8, 4))
+plt.plot(fitness_history)
+plt.xlabel('Generation')
+plt.ylabel('Best Fitness (Standard Deviation)')
+plt.title('Particle Swarm Optimization Fitness History')
+plt.grid(True)
+plt.show()
