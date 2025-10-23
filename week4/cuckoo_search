@@ -1,0 +1,102 @@
+import numpy as np
+from scipy.special import gamma
+import matplotlib.pyplot as plt
+
+def objective_function(position):
+    """
+    Sphere function: f(x) = sum(x^2)
+    This function is convex and has a single global minimum at x = [0, 0, ..., 0]
+    with a minimum value of 0.
+    """
+    return np.sum(position**2)
+
+
+n_nests = 25
+n_iterations = 100
+pa = 0.2
+alpha = 1.5
+lower_bound = -10
+upper_bound = 10
+dimensions = 2
+
+nests = lower_bound + (upper_bound - lower_bound) * np.random.rand(n_nests, dimensions)
+
+fitness = np.array([objective_function(nest) for nest in nests])
+
+best_nest_index = np.argmin(fitness)
+best_solution = nests[best_nest_index].copy()
+best_fitness = fitness[best_nest_index]
+
+best_fitness_history = []
+
+for iteration in range(n_iterations):
+
+    k = np.random.randint(n_nests)
+    current_nest = nests[k].copy()
+
+
+    sigma_u = (
+        gamma(1 + alpha) * np.sin(np.pi * alpha / 2) /
+        (gamma((1 + alpha) / 2) * alpha * (2**((alpha - 1) / 2)))
+    )**(1 / alpha)
+    sigma_v = 1
+    u = np.random.normal(0, sigma_u, dimensions)
+    v = np.random.normal(0, sigma_v, dimensions)
+    step = u / (np.abs(v)**(1 / alpha))
+    step_size = alpha * np.sign(np.random.rand() - 0.5) * step * (current_nest - best_solution)
+
+
+
+    new_solution = current_nest + step_size
+    new_solution = np.clip(new_solution, lower_bound, upper_bound)
+
+
+
+    new_fitness = objective_function(new_solution)
+
+
+    j = np.random.randint(n_nests)
+    if new_fitness < fitness[j]:
+        nests[j] = new_solution.copy()
+        fitness[j] = new_fitness
+
+
+    n_abandon = int(pa * n_nests)
+    if n_abandon > 0:
+
+        abandon_indices = np.argsort(fitness)[-n_abandon:]
+
+        nests[abandon_indices] = lower_bound + (upper_bound - lower_bound) * np.random.rand(n_abandon, dimensions)
+
+        fitness[abandon_indices] = np.array([objective_function(nests[i]) for i in abandon_indices])
+
+
+
+
+    current_best_nest_index = np.argmin(fitness)
+    if fitness[current_best_nest_index] < best_fitness:
+        best_fitness = fitness[current_best_nest_index]
+        best_solution = nests[current_best_nest_index].copy()
+
+
+    best_fitness_history.append(best_fitness)
+
+
+    if (iteration + 1) % 10 == 0:
+        print(f"Iteration {iteration + 1}: Best Fitness = {best_fitness:.6f}")
+
+
+
+print("Best solution found:")
+print(best_solution)
+print("Best fitness found:")
+print(best_fitness)
+
+
+plt.figure(figsize=(10, 6))
+plt.plot(range(n_iterations), best_fitness_history)
+plt.xlabel("Iteration")
+plt.ylabel("Best Fitness")
+plt.title("Cuckoo Search Optimization - Best Fitness over Iterations")
+plt.grid(True)
+plt.show()
