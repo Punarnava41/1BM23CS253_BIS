@@ -1,1 +1,123 @@
+import random
+import numpy as np
 
+# Define the mathematical function to optimize (Himmelblau's function)
+def fitness_function(x):
+  """
+  Himmelblau's function: f(x, y) = (x^2 + y - 11)^2 + (x + y^2 - 7)^2
+  We want to minimize this function, which means maximizing the negative of it.
+  """
+  return -((x[0]**2 + x[1] - 11)**2 + (x[0] + x[1]**2 - 7)**2)
+
+# 2. Initialize Parameters
+POPULATION_SIZE = 100
+MUTATION_RATE = 0.01
+CROSSOVER_RATE = 0.8
+NUM_GENERATIONS = 100
+# Define the search space for x and y (e.g., -5 to 5)
+SEARCH_SPACE = (-5, 5)
+
+# 3. Create Initial Population
+def create_individual():
+  """Creates a random individual (solution) within the search space."""
+  return [random.uniform(*SEARCH_SPACE), random.uniform(*SEARCH_SPACE)]
+
+def create_initial_population(size):
+  """Creates a population of random individuals."""
+  return [create_individual() for _ in range(size)]
+
+# 4. Evaluate Fitness
+def evaluate_population(population):
+  """Evaluates the fitness of each individual in the population."""
+  return [fitness_function(individual) for individual in population]
+
+# 5. Selection (Tournament Selection)
+def select_parents(population, fitness_scores, num_parents):
+  """Selects parents using tournament selection."""
+  parents = []
+  for _ in range(num_parents):
+    tournament_size = 5
+    tournament_indices = random.sample(range(len(population)), tournament_size)
+    tournament_individuals = [population[i] for i in tournament_indices]
+    tournament_fitness = [fitness_scores[i] for i in tournament_indices]
+    # Select the individual with the highest fitness (since we are maximizing)
+    winner_index = tournament_indices[tournament_fitness.index(max(tournament_fitness))]
+    parents.append(population[winner_index])
+  return parents
+
+# 6. Crossover (Single-point crossover)
+def crossover(parent1, parent2):
+  """Performs single-point crossover between two parents."""
+  if random.random() < CROSSOVER_RATE:
+    crossover_point = random.randint(0, len(parent1) - 1)
+    child1 = parent1[:crossover_point] + parent2[crossover_point:]
+    child2 = parent2[:crossover_point] + parent1[crossover_point:]
+    return child1, child2
+  else:
+    return parent1, parent2
+
+# 7. Mutation
+def mutate(individual):
+  """Applies mutation to an individual."""
+  for i in range(len(individual)):
+    if random.random() < MUTATION_RATE:
+      individual[i] += random.uniform(-0.5, 0.5) # Add a small random value
+      # Ensure the mutated value stays within the search space
+      individual[i] = max(SEARCH_SPACE[0], min(SEARCH_SPACE[1], individual[i]))
+  return individual
+
+# 8. Iterate and Evolve
+def genetic_algorithm():
+  """Runs the genetic algorithm."""
+  population = create_initial_population(POPULATION_SIZE)
+  best_solution = None
+  best_fitness = -float('inf') # Initialize with negative infinity for maximization
+
+  for generation in range(NUM_GENERATIONS):
+    fitness_scores = evaluate_population(population)
+
+    # Track the best solution in the current generation
+    current_best_fitness = max(fitness_scores)
+    current_best_individual = population[fitness_scores.index(current_best_fitness)]
+
+    if current_best_fitness > best_fitness:
+      best_fitness = current_best_fitness
+      best_solution = current_best_individual
+
+    # Selection
+    parents = select_parents(population, fitness_scores, POPULATION_SIZE)
+
+    # Crossover and Mutation to create the next generation
+    next_generation = []
+    for i in range(0, POPULATION_SIZE, 2):
+      if i + 1 < POPULATION_SIZE: # Ensure we have pairs for crossover
+        parent1 = parents[i]
+        parent2 = parents[i+1]
+        child1, child2 = crossover(parent1, parent2)
+        next_generation.append(mutate(child1))
+        next_generation.append(mutate(child2))
+      else: # Handle the case of an odd number of parents
+          next_generation.append(mutate(parents[i]))
+
+
+    population = next_generation
+
+    # Optional: Print progress
+    if (generation + 1) % 10 == 0:
+        print(f"Generation {generation + 1}: Best Fitness = {best_fitness:.4f}")
+
+
+  return best_solution, best_fitness
+
+# Run the genetic algorithm
+best_solution, best_fitness = genetic_algorithm()
+
+print("\nGenetic Algorithm finished.")
+print("Best solution found:", best_solution)
+print("Best fitness (negative of Himmelblau's minimum):", best_fitness)
+print("Corresponding Himmelblau's minimum:", -best_fitness)
+
+
+# 10. Apply to Traffic Management
+print("\nPotential Application to Traffic Management:")
+print("A genetic algorithm could be used to optimize traffic signal timings in a city to minimize congestion and travel time. The 'individuals' could be different sets of traffic light schedules for various intersections. The 'fitness function' could be based on metrics like average vehicle speed, total travel time, or queue lengths. The algorithm would evolve through generations of traffic schedules, selecting and combining the best performing ones to find an optimal or near-optimal traffic flow pattern.")
