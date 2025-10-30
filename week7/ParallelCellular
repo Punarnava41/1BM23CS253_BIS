@@ -1,0 +1,72 @@
+import random
+import numpy as np
+
+# 1. Define the Problem: Create a mathematical function to optimize.
+# Example: A simple 2D sphere function (minimize)
+def sphere_function(position):
+    return np.sum(np.square(position))
+
+# 2. Initialize Parameters: Set the number of cells, grid size, neighborhood structure, and number of iterations.
+grid_size = (10, 10)  # 10x10 grid of cells
+num_iterations = 100
+neighborhood_radius = 1 # Define the neighborhood radius (e.g., 1 for Moore neighborhood)
+search_space_bounds = [-5, 5] # Define the bounds of the search space for each dimension
+
+# 3. Initialize Population: Generate an initial population of cells with random positions in the solution space.
+# Each cell will have a position (representing a potential solution) and a fitness value.
+cells = {}
+for i in range(grid_size[0]):
+    for j in range(grid_size[1]):
+        # Initialize position randomly within the search space bounds
+        position = [random.uniform(search_space_bounds[0], search_space_bounds[1]) for _ in range(2)]
+        cells[(i, j)] = {'position': position, 'fitness': 0.0}
+
+# Function to get neighbors of a cell
+def get_neighbors(cell_coords, grid_size, radius):
+    neighbors = []
+    for i in range(max(0, cell_coords[0] - radius), min(grid_size[0], cell_coords[0] + radius + 1)):
+        for j in range(max(0, cell_coords[1] - radius), min(grid_size[1], cell_coords[1] + radius + 1)):
+            if (i, j) != cell_coords:
+                neighbors.append((i, j))
+    return neighbors
+
+# 6. Iterate: Repeat the evaluation and state updating process for a fixed number of iterations.
+best_solution = None
+best_fitness = float('inf') # Assuming minimization
+
+for iteration in range(num_iterations):
+    # 4. Evaluate Fitness: Evaluate the fitness of each cell based on the optimization function.
+    for cell_coords, cell_data in cells.items():
+        cell_data['fitness'] = sphere_function(cell_data['position'])
+
+        # Track the best solution found so far
+        if cell_data['fitness'] < best_fitness:
+            best_fitness = cell_data['fitness']
+            best_solution = cell_data['position']
+
+    # 5. Update States: Update the state of each cell based on the states of its neighboring cells and predefined update rules.
+    # Simple update rule: Move towards the best neighbor's position
+    new_cells = {}
+    for cell_coords, cell_data in cells.items():
+        neighbors = get_neighbors(cell_coords, grid_size, neighborhood_radius)
+        if neighbors:
+            # Find the best neighbor
+            best_neighbor_coords = min(neighbors, key=lambda neighbor_coords: cells[neighbor_coords]['fitness'])
+            best_neighbor_position = cells[best_neighbor_coords]['position']
+
+            # Update cell's position (simple rule: move a fraction towards the best neighbor)
+            learning_rate = 0.1
+            new_position = cell_data['position'] + learning_rate * (np.array(best_neighbor_position) - np.array(cell_data['position']))
+
+            # Clamp new position to search space bounds
+            new_position = np.clip(new_position, search_space_bounds[0], search_space_bounds[1])
+
+            new_cells[cell_coords] = {'position': new_position, 'fitness': 0.0} # Fitness will be re-evaluated in the next iteration
+        else:
+             new_cells[cell_coords] = cell_data # No neighbors, state remains the same
+
+    cells = new_cells # Update cells for the next iteration
+
+# 7. Output the Best Solution: Track and output the best solution found during the iterations.
+print(f"Best solution found: {best_solution}")
+print(f"Best fitness found: {best_fitness}")
