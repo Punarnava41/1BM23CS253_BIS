@@ -1,0 +1,30 @@
+import cv2
+import numpy as np
+from google.colab import files
+from IPython.display import display, Image
+
+# Upload an image file
+uploaded = files.upload()
+
+for filename in uploaded.keys():
+  print('User uploaded file "{name}" with length {length} bytes'.format(
+      name=filename, length=len(uploaded[filename])))
+  
+  # Read the image
+  image = cv2.imread(filename)
+
+  # Check if the image was loaded successfully
+  if image is None:
+    print(f"Error: Could not load image from {filename}")
+  else:
+    # Convert the image to grayscale
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Display the original and grayscale images
+    print("Original Image:")
+    display(Image(filename))
+
+    print("Grayscale Image:")
+    # To display the grayscale image, we need to save it temporarily
+    cv2.imwrite('grayscale_image.png', gray_image)
+    display(Image('grayscale_image.png'))
